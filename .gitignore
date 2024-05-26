@@ -162,4 +162,5 @@ cython_debug/
 # Temp folders
 data/
 wandb/
-outs/
+out/
+results/
