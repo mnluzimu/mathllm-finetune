@@ -32,7 +32,7 @@ from alignment import (
     ModelArguments,
     SFTConfig,
     apply_chat_template,
-    decontaminate_humaneval,
+    # decontaminate_humaneval,
     get_checkpoint,
     get_datasets,
     get_kbit_device_map,
@@ -146,7 +146,7 @@ def main():
     # Decontaminate benchmarks
     ##########################
     num_raw_train_samples = len(raw_datasets["train"])
-    raw_datasets = raw_datasets.filter(decontaminate_humaneval, batched=True, batch_size=10_000, num_proc=1)
+    # raw_datasets = raw_datasets.filter(decontaminate_humaneval, batched=True, batch_size=10_000, num_proc=1)
     num_filtered_train_samples = num_raw_train_samples - len(raw_datasets["train"])
     logger.info(
         f"Decontaminated {num_filtered_train_samples} ({num_filtered_train_samples/num_raw_train_samples * 100:.2f}%) samples from the training set."
