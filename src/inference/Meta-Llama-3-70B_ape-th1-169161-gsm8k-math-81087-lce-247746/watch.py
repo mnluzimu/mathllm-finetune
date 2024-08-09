@@ -16,15 +16,15 @@ def load_jsonl(in_file):
     return datas
 
 def watch(dir):
-    chs = ["3epoch"]
+    chs = ["3epoch_4gpu"]
     count = {}
     for ch in chs:
-        count[ch] = {"GSM8K": 0, "MATH_0": 0, "MATH_1": 0, "MATH_2": 0, "MATH_3": 0, "SVAMP": 0, "simuleq": 0, "mathematics": 0, "asdiv": 0, "mawps": 0}
+        count[ch] = {"GSM8K": 0, "MATH_0": 0, "MATH_1": 0, "MATH_2": 0, "MATH_3": 0, "SVAMP": 0, "simuleq": 0, "mathematics": 0, "APE_0": 0, "APE_1": 0, "APE_2": 0, "APE_3": 0, "cmath": 0, "mgsm_zh": 0}
     while True:
         for ch in chs:
             print(f"{ch}:")
             dir1 = dir + "/" + ch
-            for name in ["GSM8K", "MATH_0", "MATH_1", "MATH_2", "MATH_3", "SVAMP", "simuleq", "mathematics", "asdiv", "mawps"]:
+            for name in count[chs[0]].keys():
                 source_file = f'/mnt/cache/luzimu/code_generation-master/data/all_test/{name}_test.jsonl'
                 file_path = f'/mnt/cache/luzimu/mathllm-finetune/results/inference/{dir1}/{name}/{name}_test_result.jsonl'
 

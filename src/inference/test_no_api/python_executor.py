@@ -129,6 +129,65 @@ class PythonExecutor:
                 exec_info = "\n".join(msg)
         return result, concise_exec_info, exec_info
 
+    def execute_single(self, code, timeout_length = 10):
+        get_answer_from_stdout=self.get_answer_from_stdout
+        runtime=self.runtime
+        answer_symbol=self.answer_symbol
+        answer_expr=self.answer_expr
+        
+        code = self.process_generation_to_code([code])[0]
+
+        try:
+            if get_answer_from_stdout:
+                program_io = io.StringIO()
+                with redirect_stdout(program_io):
+                    timeout(timeout_length)(runtime.exec_code)('\n'.join(code))
+                program_io.seek(0)
+                result = "".join(program_io.readlines()) # [-1]
+            elif answer_symbol:
+                timeout(timeout_length)(runtime.exec_code)('\n'.join(code))
+                result = runtime._global_vars[answer_symbol]
+            elif answer_expr:
+                timeout(timeout_length)(runtime.exec_code)('\n'.join(code))
+                result = timeout(timeout_length)(runtime.eval_code)(answer_expr)
+            else:
+                timeout(timeout_length)(runtime.exec_code)('\n'.join(code[:-1]))
+                result = timeout(timeout_length)(runtime.eval_code)(code[-1])
+            concise_exec_info = ""
+            exec_info = ""
+            str(result)
+            pickle.dumps(result) # serialization check
+        except:
+            # traceback.print_exc()
+            result = ''
+            concise_exec_info = traceback.format_exc().split('\n')[-2]
+            exec_info = traceback.format_exc()
+            if get_answer_from_stdout and 'exec(code_piece, self._global_vars)' in exec_info:
+                exec_info = exec_info.split('exec(code_piece, self._global_vars)')[-1].strip()
+                msg = []
+                for line in exec_info.split("\n"):
+                    patt = regex.search(r'(?P<start>.*)File "(?P<file>.*)", line (?P<lno>\d+), (?P<end>.*)', line)
+                    if patt is not None:
+                        if '<module>' in patt.group('end'):
+                            continue
+                        fname = patt.group("file")
+                        if "site-packages" in fname:
+                            fname = f"site-packages{fname.split('site-packages', 1)[1]}"
+                            line = f'{patt.group("start")}File "{fname}", {patt.group("end")}'
+                        else:
+                            line = f'{patt.group("start")}{patt.group("end")}'
+                    else:
+                        patt = regex.search(r'(?P<start>.*)(?P<file>/.*site-packages/.*\.py)(?P<end>.*)', line)
+                        if patt is not None:
+                            line = f'{patt.group("start")}site-packages{patt.group("file").split("site-packages", 1)[1]}{patt.group("end")}'
+                    msg.append(line)
+                exec_info = "\n".join(msg)
+                
+        if result == "":
+            return concise_exec_info
+        else:
+            return result
+
     def apply(self, code):
         return self.batch_apply([code])[0]
 
@@ -163,3 +222,10 @@ class PythonExecutor:
             metadata = {'code': code, 'exec_result': result, 'concise_exec_info': concise_exec_info, 'exec_info': exec_info}
             batch_results.append((result, metadata))
         return batch_results
+
+if __name__ == "__main__":
+    code = "y = 1\nx"
+    executer = PythonExecutor(get_answer_from_stdout=False)
+    result = executer.execute_single(code)
+    print(f"result: {result}")
+    

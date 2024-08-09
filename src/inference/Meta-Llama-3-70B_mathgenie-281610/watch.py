@@ -16,7 +16,7 @@ def load_jsonl(in_file):
     return datas
 
 def watch(dir):
-    chs = ["3epoch"]
+    chs = ["3epoch_4gpu"]
     count = {}
     for ch in chs:
         count[ch] = {"GSM8K": 0, "MATH_0": 0, "MATH_1": 0, "MATH_2": 0, "MATH_3": 0, "SVAMP": 0, "simuleq": 0, "mathematics": 0, "asdiv": 0, "mawps": 0}

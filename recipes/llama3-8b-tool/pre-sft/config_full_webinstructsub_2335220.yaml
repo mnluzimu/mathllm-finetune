@@ -1,0 +1,50 @@
+# Model arguments
+model_name_or_path: /mnt/cache/sharemath/models/llama/Meta-Llama-3-8B
+model_revision: main
+tokenizer_name_or_path: /mnt/cache/sharemath/models/llama/Meta-Llama-3-8B
+torch_dtype: bfloat16
+use_flash_attention_2: true
+
+# Data training arguments
+chat_template: "{% for message in messages %}{{ '<|im_start|>' }}{{ message['role'] + '\n' }}{% for block in message['content'] %}{% if block['type'] == 'text' %}{{ block['content'] }}{% elif block['type'] == 'code' %}{{ '<|code_start|>```python\n' + block['content'] + '\n```<|code_end|>' }}{% elif block['type'] == 'execution' %}{{ '\n```output\n' + block['content'] + '\n```\n' }}{% endif %}{% endfor %}{{ '\n<|im_end|>\n' }}{% endfor %}"
+dataset_mixer:
+  /mnt/cache/luzimu/mathllm-finetune/data/train/WebInstructSub_2335220: 1.0
+dataset_splits:
+- train
+- test
+preprocessing_num_workers: 12
+
+# SFT trainer config
+bf16: true
+dataset_kwargs:
+  add_special_tokens: false  # We already wrap <bos> and <eos> in the chat template
+  append_concat_token: false # No need to add <eos> across samples
+do_eval: false
+evaluation_strategy: epoch
+gradient_accumulation_steps: 1
+gradient_checkpointing: true
+gradient_checkpointing_kwargs:
+  use_reentrant: false
+learning_rate: 1.0e-5
+max_grad_norm: 1.0
+log_level: info
+logging_steps: 5  
+logging_strategy: steps
+lr_scheduler_type: cosine
+max_seq_length: 2048
+max_steps: -1
+num_train_epochs: 2
+save_steps: 400
+output_dir: /mnt/cache/luzimu/mathllm-finetune/out/Meta-Llama-3-8B_WebInstructSub-2335220
+overwrite_output_dir: false
+per_device_eval_batch_size: 4
+per_device_train_batch_size: 8
+push_to_hub: false
+remove_unused_columns: true
+report_to:
+- tensorboard
+- wandb
+run_name: Meta-Llama-3-8B_WebInstructSub-2335220
+save_strategy: "no"
+seed: 3407
+warmup_ratio: 0.1

@@ -189,10 +189,10 @@ def code_generation(query):
     for _ in range(24):
         result = api.get_result(prompt, parameters=parameters)
 
-        if result is None:
-            messages.append({'role': 'exceed_max_length/return_first_code', 'content': code})
-            jupyter.shutdown()
-            return messages
+        # if result is None:
+        #     messages.append({'role': 'exceed_max_length/return_first_code', 'content': code})
+        #     jupyter.shutdown()
+        #     return messages
 
         prompt += result 
         results = result.split('<|')
@@ -270,7 +270,7 @@ if __name__ == '__main__':
     
         counter = BEGIN
         while counter < END:
-            pool = Pool(16)
+            pool = Pool(1)
             try:
                 results = pool.imap(process_full, humaneval[BEGIN:END])
                 for d in tqdm(results, total=len(humaneval[BEGIN:END])):
