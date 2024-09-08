@@ -1,0 +1,20 @@
+{
+    "blocks": [
+        {
+            "type": "text",
+            "content": "To solve the problem, we need to determine the value of \\(m + n\\) given that \\(n \\, (n \\neq 0)\\) is a root of the equation \\(x^2 + mx + 3n = 0\\).\n\nLet's break down the problem into smaller steps and solve it using Python and SymPy.\n\n### Steps to Solve the Problem:\n\n1. **Substitute \\(n\\) into the quadratic equation:** Since \\(n\\) is a root of the equation, substitute \\(x = n\\) into \\(x^2 + mx + 3n = 0\\) and solve for \\(m\\).\n2. **Use the root property:** Since \\(n\\) is a root, the equation \\(n^2 + mn + 3n = 0\\) must hold true.\n3. **Solve for \\(m\\):** Isolate \\(m\\) in the equation obtained in step 2.\n4. **Find the value of \\(m + n\\):** Given the solution for \\(m\\), compute \\(m + n\\).\n\nLet's implement this step-by-step in Python using SymPy."
+        },
+        {
+            "type": "code",
+            "content": "import sympy as sp\n\n# Define variables\nn, m = sp.symbols('n m')\n\n# Given quadratic equation with n being a root\nquadratic_equation = n**2 + m*n + 3*n\n\n# Solve the equation for m\nm_solution = sp.solve(quadratic_equation, m)[0]\n\n# Substitute the value of m back into m + n\nresult = m_solution + n\n\n# Print the final result\nprint(result)"
+        },
+        {
+            "type": "execution",
+            "content": "-3"
+        },
+        {
+            "type": "text",
+            "content": "The given quadratic equation is \\(x^2 + mx + 3n = 0\\) and we know \\(n\\) is a root of this equation. Let's verify the steps to ensure that we have the correct solution:\n\n1. **Substitute \\(n\\) into the quadratic equation:**\n   Since \\(n\\) is a root, we substitute \\(x = n\\):\n   \\[\n   n^2 + mn + 3n = 0\n   \\]\n\n2. **Solve for \\(m\\):**\n   We rearrange the equation to solve for \\(m\\):\n   \\[\n   n^2 + mn + 3n = 0\n   \\]\n   \\[\n   mn = -n^2 - 3n\n   \\]\n   \\[\n   m = \\frac{-n^2 - 3n}{n}\n   \\]\n   \\[\n   m = -n - 3\n   \\]\n\n3. **Calculate \\(m + n\\):**\n   Substitute \\(m\\) back into the expression \\(m + n\\):\n   \\[\n   m + n = (-n - 3) + n = -3\n   \\]\n\nThus, the value of \\(m + n\\) is \\(\\boxed{-3}\\). \n\nOur sympy code produced a correct result and matches our manual verification."
+        }
+    ]
+}
