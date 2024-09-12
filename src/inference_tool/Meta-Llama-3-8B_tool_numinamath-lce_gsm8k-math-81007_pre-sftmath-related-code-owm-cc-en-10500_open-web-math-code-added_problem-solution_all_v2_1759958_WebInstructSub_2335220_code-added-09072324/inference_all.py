@@ -209,9 +209,6 @@ def process(data):
     return data
 
 def main(args):
-    start_idx = args.start_idx
-    interval = args.interval
-
     ip = "127.0.0.1"
     global api
     api = API(ip=ip)
@@ -221,9 +218,9 @@ def main(args):
         config = json.load(f)
     dir = f"{config['model_name']}/" + args.ch
     
-    for name in ["GSM8K", "MATH", "SVAMP", "mathematics", "aime24", "amc23", "olympiadbench", "college_math", "carp_en", "ocw"]:
+    for name in ["GSM8K", "SVAMP", "mathematics", "MATH_0", "MATH_1", "MATH_2", "MATH_3"]:
         in_file = f'/mnt/cache/luzimu/code_generation-master/data/all_test/{name}_test.jsonl'
-        out_file = f'/mnt/cache/luzimu/mathllm-finetune/results/inference/{dir}/{name}/{name}_test_result_{start_idx}.jsonl'
+        out_file = f'/mnt/cache/luzimu/mathllm-finetune/results/inference/{dir}/{name}/{name}_test_result.jsonl'
         
         if not os.path.exists("/".join(out_file.split("/")[:-1])):
             os.makedirs("/".join(out_file.split("/")[:-1]))
@@ -233,7 +230,7 @@ def main(args):
         else:
             begin = 0
             
-        datas = load_jsonl(in_file)[start_idx::interval]
+        datas = load_jsonl(in_file)
         end = len(datas)
         
         outs = []
@@ -269,9 +266,7 @@ def main(args):
     
 if __name__ == "__main__":
     parser = ArgumentParser(description="A simple argument parser")
-    parser.add_argument("--ch", type=str, help="checkpoint_number", default="600")
-    parser.add_argument("--start_idx", type=int)
-    parser.add_argument("--interval", type=int)
+    parser.add_argument("ch", type=str, help="checkpoint_number", default="600")
     args = parser.parse_args()
     
     main(args)

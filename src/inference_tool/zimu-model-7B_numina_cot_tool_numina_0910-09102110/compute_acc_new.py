@@ -478,6 +478,7 @@ def compute_accuracy(in_file, out_file, name):
     
 def combine(in_dir):
     for name in ["GSM8K", "MATH", "SVAMP", "mathematics", "aime24", "amc23", "olympiadbench", "college_math", "carp_en", "ocw"]:
+        print(name)
         if not os.path.exists(os.path.join(in_dir, name)):
             os.makedirs(os.path.join(in_dir, name))
         in_files = glob(os.path.join(in_dir, name, f"{name}_test_result_[0-9]*.jsonl"))

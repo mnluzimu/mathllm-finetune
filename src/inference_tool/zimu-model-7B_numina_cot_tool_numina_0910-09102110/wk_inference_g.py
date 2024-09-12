@@ -13,12 +13,8 @@ from jupyter_client.manager import start_new_kernel
 import zmq
 import time
 from argparse import ArgumentParser
+import requests
 
-api = None
-
-if not os.path.exists("/cage"):
-    os.makedirs("/cage")
-os.chdir("/cage")
 
 def timestamp() -> str:
     nowtime = time.strftime('-%Y%m%d-%H%M', time.localtime(time.time()))
@@ -92,6 +88,11 @@ class JupyterNotebookKernel(object):
                     msg['content']['traceback'] = ' '.join(msg['content']['traceback'])
 
                 error = re.sub(
+                    r'[\x1B\x1b\u001b]\[([0-9]{1,4}((;[0-9]{1,4}){1,10})?)?[mGK]',
+                    '',
+                    msg['content']['traceback'],
+                ).lstrip()
+                error = re.sub(
                     '\x1B\\[([0-9]{1,2}(;[0-9]{1,2})?)?[mGK]',
                     '',
                     msg['content']['traceback'],
@@ -139,121 +140,156 @@ class JupyterNotebookKernel(object):
 
 class API:
 
-    def __init__(self, port='8001', ip='10.119.29.124'):
-        self.client = InferenceClient(model=f'http://{ip}:{port}')
+    def __init__(self, ip = '', port='8001'):
+        self.api_url = f"http://{ip}:{port}/generate"
+        self.headers = {"User-Agent": "Test Client"}
 
     def get_result(self, inputs, parameters=None):
-
-        local_parameters = dict(max_new_tokens=3072, details=True, decoder_input_details=True)
+        
+        local_parameters = dict(prompt=inputs, max_tokens=1024, stream=False)
 
         if parameters is not None:
             local_parameters.update(parameters)
         
         try:
-            result = self.client.text_generation(prompt=inputs, **local_parameters)
+            response = requests.post(self.api_url, headers=self.headers, json=local_parameters, stream=False)
+            data = json.loads(response.content)
+            text = data["text"][0]
 
-            tokens_text = [token.text for token in result.details.tokens]
-            text = "".join(tokens_text)
+            if text.startswith(inputs):
+                text = text[len(inputs):]
 
             return text
+        
         except:
             import traceback
             traceback.print_exc()
             print(inputs) 
             return None
         
-def solution_generation(question, system):
-    question = question.replace("Solve the problem and put your answer in '\\boxed{}'. \n", "")
-    prompt = f"<|im_start|>system\n{system}\n<|im_end|>\n<|im_start|>user\n{question}\n<|im_end|>\n<|im_start|>assistant"
-    parameters=dict(
-        do_sample=False,
-        max_new_tokens=3072,
-        stop_sequences=['<|im_end|>', '<|code_end|>'], 
-        truncate=3072,
-        details=True, 
-        decoder_input_details=True
-    )
-    
-    global api
-    
+
+def code_generation(query):
+    query = query.replace("请回答以下问题并把答案放在\\boxed{}里：", '').replace("Solve the problem and put your answer in '\\boxed{}'. \n", "")
+    system = ""
+    # system = "Solve the problem below, and you must put your answer in one and only one '\\boxed{}'.\n\nTo solve the problem using code step by step, even in every sub-step."
+    prompt = f'<|system|><|text|>{system}<|endofblock|><|endofmessage|><|user|><|text|>{query}<|endofblock|><|endofmessage|><|assistant|>'
+
+    messages = [
+        {'role': 'system', 'content': system},
+        {'role': 'user', 'content': query}
+    ]
+
     jupyter = JupyterNotebookKernel()
     jupyter.start_monitoring()
-    
-    n_iters = 20
-    while not prompt.endswith('<|im_end|>'):
-        result = api.get_result(prompt, parameters)
-        prompt += result
-        
-        if result.endswith('<|code_end|>'):
-            code = ""
-            if '<|code_start|>' in result:
-                code = result.split('<|code_start|>')[-1].replace('<|code_end|>', '').replace('```python\n', '').replace('\n```', '').strip("\n")
-            elif '<|code_start|>' in prompt:
-                code = result.split('<|code_start|>')[-1].replace('<|code_end|>', '').replace('```python\n', '').replace('\n```', '').strip("\n")
-            if code != "":
-                execution = jupyter.run_code(code)
-                prompt += f'\n```output\n{execution}\n```\n'
-        
-        n_iters -= 1
-        if n_iters <= 0:
-            break
-            
-    return prompt
 
-def process(data):
-    system = ""
+
+    parameters=dict(
+        use_beam_search=False,
+        n=1,
+        temperature=0.0,
+        stop=['<|endofmessage|>', '<|endofblock|>'], 
+        include_stop_str_in_output=True,
+        skip_special_tokens=False,
+    )
+    code = ''
+    for _ in range(24):
+        result = api.get_result(prompt, parameters=parameters)
+        prompt += result 
+
+        if result is None:
+            messages.append({'role': 'exceed_max_length/return_first_code', 'content': code})
+            jupyter.shutdown()
+            return messages
+
+        
+        results = result.split('<|')
+        for id, sub_result in enumerate(results):
+            if id > 0:
+                sub_result = '<|' + sub_result
+            if len(sub_result.replace('<|assistant|>','').replace('<|code|>','').replace('<|text|>','').replace('<|endofblock|>','')) == 0:
+                continue
+            # print(sub_result)
+            if sub_result.startswith('<|code|>'):
+                code = sub_result.replace('<|code|>', '').replace('<|endofblock|>', '')
+                messages.append({'role': 'code', 'content': code})
+                
+                execution = jupyter.run_code(code)
+
+                prompt += f"<|execution|>{execution}<|endofblock|>"
+                messages.append({'role': 'execution', 'content': execution})
+            elif not sub_result.endswith('<|endofmessage|>'):
+                messages.append({'role': 'text', 'content': sub_result.replace('<|text|>', '').replace('<|endofblock|>', '')})
+        if  result.endswith('<|endofmessage|>') or result.endswith('<|endoftext|>'):
+            break
     
-    result = solution_generation(data["question"], system)
-    data["model_generation"] = result
-    
+    jupyter.shutdown()
+    return messages
+
+def process_full(data, key='question'):
+
+    query = data[key]
+
+    debug_result = code_generation(query)
+
+    data['debug_result'] = debug_result
+
     return data
 
-def main(args):
-    start_idx = args.start_idx
-    interval = args.interval
 
-    ip = "127.0.0.1"
-    global api
-    api = API(ip=ip)
-    
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    with open(os.path.join(dir_path, "config.json"), "r") as f:
-        config = json.load(f)
-    dir = f"{config['model_name']}/" + args.ch
-    
-    for name in ["GSM8K", "MATH", "SVAMP", "mathematics", "aime24", "amc23", "olympiadbench", "college_math", "carp_en", "ocw"]:
-        in_file = f'/mnt/cache/luzimu/code_generation-master/data/all_test/{name}_test.jsonl'
-        out_file = f'/mnt/cache/luzimu/mathllm-finetune/results/inference/{dir}/{name}/{name}_test_result_{start_idx}.jsonl'
+if __name__ == '__main__':
+    parser = ArgumentParser(description="A simple argument parser")
+    parser.add_argument("ch", type=str, help="checkpoint_number", default="600")
+
+    args = parser.parse_args()
+    print(args.ch)
+
+    ip = {
+        "2epoch": "10.119.25.44",
+    }
+
+    api = API(port="8001", ip=ip[args.ch])
+    dir = f"debug/" + args.ch
+
+    # GSM8K200 APE500 gaokao-mathcloze gaokao-mathqa TAL500 CMMLU AGI
+    for name in ["GSM8K", "APE_0", "APE_1", "SVAMP", "simuleq", "mathematics"]:
+        input_path = f'/mnt/cache/luzimu/code_generation-master/data/all_test/{name}_test.jsonl'
+        output_path = f'/mnt/cache/luzimu/rlhf_math/alignment-handbook/results/inference/{dir}/{name}/{name}_test_result.jsonl'
+
+        # output_path = f'/mnt/cache/wangke/code_generation/outs/debug/{name}/{name}_test_result.jsonl'
+        if not os.path.exists("/".join(output_path.split("/")[:-1])):
+            os.makedirs("/".join(output_path.split("/")[:-1]))
         
-        if not os.path.exists("/".join(out_file.split("/")[:-1])):
-            os.makedirs("/".join(out_file.split("/")[:-1]))
-            
-        if os.path.isfile(out_file):
-            begin = len(load_jsonl(out_file))
-        else:
-            begin = 0
-            
-        datas = load_jsonl(in_file)[start_idx::interval]
-        end = len(datas)
-        
+        try:
+            all = load_jsonl(output_path)
+        except FileNotFoundError:
+            all = []
+
+        BEGIN = len(all)
+
+        OVER_WRITE = True
+        humaneval = load_jsonl(input_path)
+        END = len(humaneval)
         outs = []
-        counter = begin
-        while counter < end:
-            pool = Pool(8)
+
+    
+        counter = BEGIN
+        while counter < END:
+            pool = Pool(16)
             try:
-                results = pool.imap(process, datas[begin:end])
-                for d in tqdm(results, total=len(datas[begin:end])):
+                results = pool.imap(process_full, humaneval[BEGIN:END])
+                for d in tqdm(results, total=len(humaneval[BEGIN:END])):
+                    d['completion'] = d['debug_result'][-1]['content']
                     outs.append(d)
+                    all.append(d)
                     counter += 1
-                    if counter % 10 == 0 or counter == end:
-                        if counter <= 10:
-                            save_jsonl(outs, out_file, mode='w', add_timestamp=False, verbose=False)
+                    if counter % 10 == 0 or counter == END:
+                        if counter <= 10 and OVER_WRITE:
+                            save_jsonl(outs, output_path,mode='w', add_timestamp=False, verbose=False)
                         else:
-                            save_jsonl(outs, out_file, mode='a', add_timestamp=False, verbose=False)
+                            save_jsonl(outs, output_path,mode='a', add_timestamp=False, verbose=False)
                         outs = []
-                        begin = counter
+                        BEGIN = counter
             except Exception as e:
-                print(e)
                 print(f'<|{str(e)}|>')
                 pool.terminate()  # 立即终止所有子进程
                 print(f"[restarting]")
@@ -265,17 +301,3 @@ def main(args):
 
         
         print('Total: ', counter)
-
-    
-if __name__ == "__main__":
-    parser = ArgumentParser(description="A simple argument parser")
-    parser.add_argument("--ch", type=str, help="checkpoint_number", default="600")
-    parser.add_argument("--start_idx", type=int)
-    parser.add_argument("--interval", type=int)
-    args = parser.parse_args()
-    
-    main(args)
-            
-        
-    
-    

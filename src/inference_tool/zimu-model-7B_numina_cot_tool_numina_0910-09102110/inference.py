@@ -13,6 +13,7 @@ from jupyter_client.manager import start_new_kernel
 import zmq
 import time
 from argparse import ArgumentParser
+import requests
 
 api = None
 
@@ -139,23 +140,27 @@ class JupyterNotebookKernel(object):
 
 class API:
 
-    def __init__(self, port='8001', ip='10.119.29.124'):
-        self.client = InferenceClient(model=f'http://{ip}:{port}')
+    def __init__(self, ip = '', port='8001'):
+        self.api_url = f"http://{ip}:{port}/generate"
+        self.headers = {"User-Agent": "Test Client"}
 
     def get_result(self, inputs, parameters=None):
-
-        local_parameters = dict(max_new_tokens=3072, details=True, decoder_input_details=True)
+        
+        local_parameters = dict(prompt=inputs, max_tokens=1024, stream=False)
 
         if parameters is not None:
             local_parameters.update(parameters)
         
         try:
-            result = self.client.text_generation(prompt=inputs, **local_parameters)
+            response = requests.post(self.api_url, headers=self.headers, json=local_parameters, stream=False)
+            data = json.loads(response.content)
+            text = data["text"][0]
 
-            tokens_text = [token.text for token in result.details.tokens]
-            text = "".join(tokens_text)
+            if text.startswith(inputs):
+                text = text[len(inputs):]
 
             return text
+        
         except:
             import traceback
             traceback.print_exc()
@@ -166,12 +171,12 @@ def solution_generation(question, system):
     question = question.replace("Solve the problem and put your answer in '\\boxed{}'. \n", "")
     prompt = f"<|im_start|>system\n{system}\n<|im_end|>\n<|im_start|>user\n{question}\n<|im_end|>\n<|im_start|>assistant"
     parameters=dict(
-        do_sample=False,
-        max_new_tokens=3072,
-        stop_sequences=['<|im_end|>', '<|code_end|>'], 
-        truncate=3072,
-        details=True, 
-        decoder_input_details=True
+        use_beam_search=False,
+        n=1,
+        temperature=0.0,
+        stop=['<|im_end|>', '<|code_end|>'], 
+        include_stop_str_in_output=True,
+        skip_special_tokens=False,
     )
     
     global api
