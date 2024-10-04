@@ -1,0 +1,5 @@
+{
+    "root_dir": "/mnt/cache/luzimu/mathllm-finetune/data/dpo_data/Qwen2_5-Math-7B_numinamath/naive_dpo",
+    "num_correct_thresh": 1,
+    "num_wrong_thresh": 1
+}

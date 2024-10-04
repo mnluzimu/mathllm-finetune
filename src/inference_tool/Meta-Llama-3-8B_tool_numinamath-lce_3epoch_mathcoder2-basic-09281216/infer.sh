@@ -20,8 +20,8 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 tmux kill-server
 sleep 5s
-tmux new-session -d -s deploy_$start_idx "bash $DIR/deploy.sh"
+tmux new-session -d -s deploy_${tag}_${start_idx} "bash $DIR/deploy.sh $tag"
 sleep 5s
-tmux new-session -d -s infer_$start_idx "python $DIR/inference.py --ch $tag --start_idx $start_idx --interval $interval"
+tmux new-session -d -s infer_${tag}_${start_idx} "python $DIR/inference.py --ch $tag --start_idx $start_idx --interval $interval"
 sleep 1s
 tmux ls

@@ -12,16 +12,16 @@ unset __conda_setup
 
 conda activate /mnt/cache/luzimu/rlhf_math/.env/inferenv
 
-tag=$1
-start_idx=$2
-interval=$3
-
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-tmux kill-server
-sleep 5s
-tmux new-session -d -s deploy_$start_idx "bash $DIR/deploy.sh"
-sleep 5s
-tmux new-session -d -s infer_$start_idx "python $DIR/inference.py --ch $tag --start_idx $start_idx --interval $interval"
-sleep 1s
-tmux ls
+dataset=$1
+round=$2
+index=$3
+model_path="/mnt/cache/luzimu/mathllm-finetune/out/Qwen2_5-Math-7B_numinamath-cot_2epoch-10022154"
+
+tmux kill-session -t loop_${dataset}_${index}
+tmux kill-session -t ${index}
+
+tmux new-session -d -s deploy_${dataset}_${index} "bash $DIR/deploy_vllm.sh $model_path"
+tmux new-session -d -s loop_${dataset}_${index} "bash $DIR/infer_loop.sh $dataset $round $index"
+tmux new-session -d -s watch_${dataset}_${index} "bash $DIR/watch.sh $index $dataset"

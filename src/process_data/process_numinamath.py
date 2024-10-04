@@ -113,4 +113,4 @@ def main_lce():
 
 
 if __name__ == "__main__":
-    main_lce()
+    test_load()
